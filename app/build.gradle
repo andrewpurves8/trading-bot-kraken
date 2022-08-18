@@ -3,6 +3,11 @@ plugins {
     id 'kotlin-android'
 }
 
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
+def apiKey = properties.getProperty('kraken.api_key')
+def privateKey = properties.getProperty('kraken.private_key')
+
 android {
     compileSdk 31
 
@@ -20,6 +25,12 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField("String", "API_KEY", "\"${apiKey}\"")
+            buildConfigField("String", "PRIVATE_KEY", "\"${privateKey}\"")
+        }
+        debug {
+            buildConfigField("String", "API_KEY", "\"${apiKey}\"")
+            buildConfigField("String", "PRIVATE_KEY", "\"${privateKey}\"")
         }
     }
     compileOptions {

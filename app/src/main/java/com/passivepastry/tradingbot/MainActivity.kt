@@ -7,9 +7,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.passivepastry.tradingbot.kraken_api.KrakenApi
+import org.json.JSONArray
+import org.json.JSONException
+import org.json.JSONObject
 
 private const val TAG = "MainActivity.kt"
 private const val millisPerMinute = 1000 * 60
@@ -18,6 +23,39 @@ private const val millisPerHour = millisPerMinute * 60
 class MainActivity : AppCompatActivity() {
     companion object {
         const val NOTIFICATION_CHANNEL_ID = "TradingBotChannel"
+    }
+
+
+
+    @Throws(JSONException::class)
+    fun JSONObject.toMap(): Map<String, Any> {
+        val map = mutableMapOf<String, Any>()
+        val keysItr: Iterator<String> = this.keys()
+        while (keysItr.hasNext()) {
+            val key = keysItr.next()
+            var value: Any = this.get(key)
+            when (value) {
+                is JSONArray -> value = value.toList()
+                is JSONObject -> value = value.toMap()
+            }
+            map[key] = value
+        }
+        return map
+    }
+
+
+    @Throws(JSONException::class)
+    fun JSONArray.toList(): List<Any> {
+        val list = mutableListOf<Any>()
+        for (i in 0 until this.length()) {
+            var value: Any = this[i]
+            when (value) {
+                is JSONArray -> value = value.toList()
+                is JSONObject -> value = value.toMap()
+            }
+            list.add(value)
+        }
+        return list
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,13 +87,16 @@ class MainActivity : AppCompatActivity() {
         textViewEma.text = "Ema: $ema"
         textViewDecision.text = "Decision: $decision"
         textViewPSAR.text = "PSAR: $psar"
+
     }
 
     fun scheduleAlarm() {
         val intent = Intent(applicationContext, AlarmReceiver::class.java)
         val pIntent = PendingIntent.getBroadcast(
-            this, AlarmReceiver.REQUEST_CODE,
-            intent, PendingIntent.FLAG_UPDATE_CURRENT
+            this,
+            AlarmReceiver.REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val currentMillis = System.currentTimeMillis() // alarm is set right away
@@ -64,9 +105,13 @@ class MainActivity : AppCompatActivity() {
 
         val alarm = this.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
+        // alarm.setRepeating(
+        //     AlarmManager.RTC_WAKEUP, millisAtNextHour,
+        //     AlarmManager.INTERVAL_HOUR, pIntent)
         alarm.setRepeating(
-            AlarmManager.RTC_WAKEUP, millisAtNextHour,
-            AlarmManager.INTERVAL_HOUR, pIntent)
+            AlarmManager.RTC_WAKEUP, currentMillis + 1000,
+            AlarmManager.INTERVAL_FIFTEEN_MINUTES, pIntent)
+
     }
 
     private fun createNotificationChannel() {

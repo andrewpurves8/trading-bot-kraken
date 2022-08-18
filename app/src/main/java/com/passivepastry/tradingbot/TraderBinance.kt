@@ -16,7 +16,7 @@ import kotlin.math.round
 
 private const val TAG = "TradeTask.kt"
 
-class Trader(private val context: Context) {
+class TraderBinance(private val context: Context) {
     private val http = Http()
 
     private val sharedPreferences = context.getSharedPreferences("TradingBotPrefs", Context.MODE_PRIVATE)
@@ -67,7 +67,7 @@ class Trader(private val context: Context) {
         Log.d(TAG, "$latestSar")
     }
 
-    fun Double.floorDecimals(decimals: Int): Double {
+    private fun Double.floorDecimals(decimals: Int): Double {
         var multiplier = 1
         repeat(decimals) { multiplier *= 10 }
         return floor(this * multiplier) / multiplier.toDouble()
@@ -280,7 +280,7 @@ class Trader(private val context: Context) {
     private var minMaxExtremePoint // depending on trend the maximum or minimum extreme point value of trend
             : Double = 0.0
 
-    protected fun calcPSAR(index: Int, candleSticks: List<CandleStick>): Double {
+    private fun calcPSAR(index: Int, candleSticks: List<CandleStick>): Double {
         var sar: Double = Double.NaN
         if (index == 0) {
             sars.add(sar)

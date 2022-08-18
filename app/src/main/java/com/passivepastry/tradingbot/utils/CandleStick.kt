@@ -8,4 +8,7 @@ class CandleStick(private val initArray: JSONArray) {
     val high = initArray.get(2).toString().toDouble()
     val low = initArray.get(3).toString().toDouble()
     val close = initArray.get(4).toString().toDouble()
+    val vwap = initArray.get(5).toString().toDouble()
+    val volume = initArray.get(6).toString().toDouble()
+    val count = initArray.get(7).toString().toInt()
 }
