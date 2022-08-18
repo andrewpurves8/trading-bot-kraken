@@ -24,18 +24,6 @@ private const val TAG = "MainService.kt"
 class MainService : IntentService("MainService") {
     private val notificationId = 1
 
-//    class ResponseOhlc {
-//        val error: List<String>? = null
-//
-//        class Result {
-//            val ticker: String? = null
-//            val testt = JSONObject()
-//            class Ohlc {
-//
-//            }
-//        }
-//    }
-
     @Throws(JSONException::class)
     fun JSONObject.toMap(): Map<String, Any> {
         val map = mutableMapOf<String, Any>()
@@ -86,8 +74,11 @@ class MainService : IntentService("MainService") {
 
         startForeground(notificationId, notification)
 
-        // TraderKraken(this).checkForTrades()
-        calcKST()
+//        TraderKraken(this).checkForTrades()
+//        calcKST()
+        getBalance("XETH")
+        getBalance("USDT")
+
 
         Thread.sleep(30_000)
     }
@@ -131,13 +122,14 @@ class MainService : IntentService("MainService") {
         val smaLen3 = 10
         val smaLen4 = 15
         val sigLen = 9
+        val numSamples = 2 // Excludes current, uncommitted sample
 
-        val smaRoc1 = smaRoc(closes, rocLen1, smaLen1, sigLen + 1)
-        val smaRoc2 = smaRoc(closes, rocLen2, smaLen2, sigLen + 1)
-        val smaRoc3 = smaRoc(closes, rocLen3, smaLen3, sigLen + 1)
-        val smaRoc4 = smaRoc(closes, rocLen4, smaLen4, sigLen + 1)
+        val smaRoc1 = smaRoc(closes, rocLen1, smaLen1, sigLen + numSamples)
+        val smaRoc2 = smaRoc(closes, rocLen2, smaLen2, sigLen + numSamples)
+        val smaRoc3 = smaRoc(closes, rocLen3, smaLen3, sigLen + numSamples)
+        val smaRoc4 = smaRoc(closes, rocLen4, smaLen4, sigLen + numSamples)
 
-        if (smaRoc1.size != sigLen + 1 ||
+        if (smaRoc1.size != sigLen + numSamples ||
             smaRoc1.size != smaRoc2.size ||
             smaRoc2.size != smaRoc3.size ||
             smaRoc3.size != smaRoc4.size) {
@@ -145,20 +137,24 @@ class MainService : IntentService("MainService") {
         }
 
         val kstList = mutableListOf<Double>()
-        for (i in 0 until sigLen + 1) {
+        for (i in 0 until sigLen + numSamples) {
             val kstVal = smaRoc1[i] + 2 * smaRoc2[i] + 3 * smaRoc3[i] + 4 * smaRoc4[i]
             kstList.add(kstVal)
         }
 
-        val kst = kstList[sigLen]
-        val sig = sma(kstList, sigLen, 2)[1]
-        val kstPrev = kstList[sigLen - 1]
-        val sigPrev = sma(kstList, sigLen, 2)[0]
+        val kstMostRecent = kstList[kstList.size - 2]
+        val kstPrevious = kstList[kstList.size - 3]
+        val sig = sma(kstList, sigLen, numSamples + 1)
+        val sigMostRecent = sig[numSamples - 1]
+        val sigPrevious = sig[numSamples - 2]
 
-        Log.d(TAG, "KST: $kst")
-        Log.d(TAG, "SIG: $sig")
-        Log.d(TAG, "KST PREV: $kstPrev")
-        Log.d(TAG, "SIG PREV: $sigPrev")
+        if (kstMostRecent > sigMostRecent && kstPrevious < sigPrevious) {
+            Log.d(TAG, "Action: BUY")
+        } else if (kstMostRecent < sigMostRecent && kstPrevious > sigPrevious) {
+            Log.d(TAG, "Action: SELL")
+        } else {
+            Log.d(TAG, "Action: HODL")
+        }
     }
 
     fun smaRoc(values: List<Double>, rocLen: Int, smaLen: Int, targetLen: Int): List<Double> {
@@ -191,23 +187,22 @@ class MainService : IntentService("MainService") {
         Log.d(TAG, "ROC output length ${rocList.size}")
         return rocList
     }
+
+    fun getBalance(asset: String) {
+        val apiKey = BuildConfig.API_KEY
+        val privateKey = BuildConfig.PRIVATE_KEY
+
+        val api = KrakenApi()
+        api.setKey(apiKey)
+        api.setSecret(privateKey)
+
+        val input: MutableMap<String?, String?> = HashMap()
+        val response = api.queryPrivate(KrakenApi.Method.BALANCE, input)
+        val responseObj = JSONObject(response)
+        val resultObj = responseObj.getJSONObject("result")
+        val balance = resultObj.get(asset)
+        Log.d(TAG, "$asset balance: $balance")
+    }
+
+//    fun buy()
 }
-
-// Pine code for KST:
-
-//indicator(title="Know Sure Thing", shorttitle="KST", format=format.price, precision=4, timeframe="", timeframe_gaps=true)
-//roclen1 = input.int(10, minval=1, title = "ROC Length #1")
-//roclen2 = input.int(15, minval=1, title = "ROC Length #2")
-//roclen3 = input.int(20, minval=1, title = "ROC Length #3")
-//roclen4 = input.int(30, minval=1, title = "ROC Length #4")
-//smalen1 = input.int(10, minval=1, title = "SMA Length #1")
-//smalen2 = input.int(10, minval=1, title = "SMA Length #2")
-//smalen3 = input.int(10, minval=1, title = "SMA Length #3")
-//smalen4 = input.int(15, minval=1, title = "SMA Length #4")
-//siglen = input.int(9, minval=1, title = "Signal Line Length")
-//smaroc(roclen, smalen) => ta.sma(ta.roc(close, roclen), smalen)
-//kst = smaroc(roclen1, smalen1) + 2 * smaroc(roclen2, smalen2) + 3 * smaroc(roclen3, smalen3) + 4 * smaroc(roclen4, smalen4)
-//sig = ta.sma(kst, siglen)
-//plot(kst, color=#009688, title="KST")
-//plot(sig, color=#F44336, title="Signal")
-//hline(0, title="Zero", color = #787B86)
