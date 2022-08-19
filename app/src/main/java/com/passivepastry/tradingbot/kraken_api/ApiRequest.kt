@@ -7,6 +7,9 @@ import java.net.MalformedURLException
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
 
+/**
+ * Adapted from https://github.com/nyg/kraken-api-java
+ */
 
 /**
  * Represents an HTTPS request for querying the Kraken API.

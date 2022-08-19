@@ -10,6 +10,9 @@ import java.util.*
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
+/**
+ * Adapted from https://github.com/nyg/kraken-api-java
+ */
 
 /**
  * Provides basic utilities for hash, byte array and string manipulation.
