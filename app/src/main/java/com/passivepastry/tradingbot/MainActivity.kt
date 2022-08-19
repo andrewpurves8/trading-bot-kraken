@@ -7,11 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.passivepastry.tradingbot.kraken_api.KrakenApi
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -67,27 +65,20 @@ class MainActivity : AppCompatActivity() {
 //        startForegroundService(serviceIntent)
 
         val textViewTime = findViewById<View>(R.id.text_view_time) as TextView
+        val textViewKst = findViewById<View>(R.id.text_view_kst) as TextView
+        val textViewSig = findViewById<View>(R.id.text_view_sig) as TextView
         val textViewAction = findViewById<View>(R.id.text_view_action) as TextView
-        val textViewClose = findViewById<View>(R.id.text_view_close) as TextView
-        val textViewEma = findViewById<View>(R.id.text_view_ema) as TextView
-        val textViewDecision = findViewById<View>(R.id.text_view_decision) as TextView
-        val textViewPSAR = findViewById<View>(R.id.text_view_psar) as TextView
 
         val sharedPreferences = getSharedPreferences("TradingBotPrefs", Context.MODE_PRIVATE)
-        val action = sharedPreferences.getString("action", "N/A")
-        val close = sharedPreferences.getString("close", "N/A")
         val time = sharedPreferences.getString("time", "N/A")
-        val ema = sharedPreferences.getString("ema", "N/A")
-        val decision = sharedPreferences.getString("decision", "N/A")
-        val psar = sharedPreferences.getString("psar", "N/A")
+        val kst = sharedPreferences.getString("kst", "N/A")
+        val sig = sharedPreferences.getString("sig", "N/A")
+        val action = sharedPreferences.getString("action", "N/A")
 
         textViewTime.text = "Time: $time"
+        textViewKst.text = "KST: $kst"
+        textViewSig.text = "Sig: $sig"
         textViewAction.text = "Action: $action"
-        textViewClose.text = "Close: $close"
-        textViewEma.text = "Ema: $ema"
-        textViewDecision.text = "Decision: $decision"
-        textViewPSAR.text = "PSAR: $psar"
-
     }
 
     fun scheduleAlarm() {
@@ -105,13 +96,9 @@ class MainActivity : AppCompatActivity() {
 
         val alarm = this.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-        // alarm.setRepeating(
-        //     AlarmManager.RTC_WAKEUP, millisAtNextHour,
-        //     AlarmManager.INTERVAL_HOUR, pIntent)
-        alarm.setRepeating(
-            AlarmManager.RTC_WAKEUP, currentMillis + 1000,
-            AlarmManager.INTERVAL_FIFTEEN_MINUTES, pIntent)
-
+         alarm.setRepeating(
+             AlarmManager.RTC_WAKEUP, millisAtNextHour,
+             AlarmManager.INTERVAL_HOUR, pIntent)
     }
 
     private fun createNotificationChannel() {

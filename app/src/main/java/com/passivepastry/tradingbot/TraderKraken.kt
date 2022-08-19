@@ -1,150 +1,179 @@
 package com.passivepastry.tradingbot
 
 import android.content.Context
-import android.util.Log
-import org.json.JSONArray
-import com.passivepastry.tradingbot.utils.CandleStick
-import com.passivepastry.tradingbot.utils.Http
-import okhttp3.Response
+import com.passivepastry.tradingbot.kraken_api.KrakenApi
 import org.json.JSONObject
+import java.lang.Exception
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlin.math.floor
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.math.round
 
 private const val TAG = "TradeTask.kt"
 
-class TraderKraken(private val context: Context) {
-    private val http = Http()
-
+class TraderKraken(context: Context) {
     private val sharedPreferences = context.getSharedPreferences("TradingBotPrefs", Context.MODE_PRIVATE)
 
     fun checkForTrades() {
-//        val currentDateTime = LocalDateTime.now()
-//        val currentDateTimeFormatted = currentDateTime.format(DateTimeFormatter.ISO_TIME)
-//        val ema = getEma()
-//        val latestSar = getPSAR()
-//
-//        val editor = sharedPreferences.edit()
-//        editor.putString("close", "${getClose()}")
-//        editor.putString("time", currentDateTimeFormatted)
-//        editor.putString("ema", "$ema")
-//        editor.putString("psar", "$latestSar")
-//
-//        if (sarLatestChange == 1) {
-//            // Sell
-//            editor.putString("action", "Sell")
-//
-//            if (getClose() < ema) {
-//                editor.putString("decision", "Sell")
-//                sell()
-//            }
-//            else
-//                editor.putString("decision", "Do nothing")
-//        } else if (sarLatestChange == 2) {
-//            // Buy
-//            editor.putString("action", "Buy")
-//
-//            if (getClose() > ema) {
-//                editor.putString("decision", "Buy")
-//                buy()
-//            }
-//            else
-//                editor.putString("decision", "Do nothing")
-//        } else {
-//            // No change
-//            editor.putString("action", "N/A")
-//            editor.putString("decision", "Do nothing")
-//        }
-//
-//        editor.commit()
-//
-//        for (i in 0 until sars.size) {
-//            Log.d(TAG, "$i ${sars[i]}")
-//        }
-//        Log.d(TAG, "$latestSar")
-    }
+        val apiKey = BuildConfig.API_KEY
+        val privateKey = BuildConfig.PRIVATE_KEY
 
-    private fun Double.floorDecimals(decimals: Int): Double {
-        var multiplier = 1
-        repeat(decimals) { multiplier *= 10 }
-        return floor(this * multiplier) / multiplier.toDouble()
-    }
+        val api = KrakenApi()
+        api.setKey(apiKey)
+        api.setSecret(privateKey)
 
-    fun Double.roundDecimals(decimals: Int): Double {
-        var multiplier = 1
-        repeat(decimals) { multiplier *= 10 }
-        return round(this * multiplier) / multiplier.toDouble()
-    }
+        val closes = getCloses(api)
 
-    private fun getAccountInfo() : Response {
-        val paramMap = mapOf(
-            "timestamp" to "${System.currentTimeMillis()}")
-
-        return http.httpGet(
-            "https://api.binance.com/api/v3/account",
-            paramMap,
-            true)
-    }
-
-    private fun getClose(): Double {
-        val paramMap = mapOf(
-            "symbol" to "ETHUSDT",
-            "interval" to "1h",
-            "limit" to "2")
-
-        val response = http.httpGet(
-            "https://api.binance.com/api/v3/klines",
-            paramMap,
-            false)
-
-        val klinesString = response.body()!!.string()
-        val klinesJson = JSONArray(klinesString)
-        val jsonKline = klinesJson.get(0) as JSONArray
-
-        return CandleStick(jsonKline).close
-    }
-
-
-    private fun calcEma50(candleSticks: List<CandleStick>) : Double {
-        var ema = calcInitialSma50(candleSticks)
-        val smooth = 2.0 / (1 + 50)
-        for (i in 50 until candleSticks.size) {
-            ema = candleSticks[i].close * smooth + ema * (1 - smooth)
+        val action = calcKst(closes)
+        if (action == "buy")  {
+            buy(api, closes[closes.size - 1])
+        } else {
+            sell(api)
         }
-        return ema
     }
 
-    private fun calcInitialSma50(candleSticks: List<CandleStick>) : Double {
-        var total = 0.0
+    private fun getCloses(api: KrakenApi): List<Double> {
+        val response: String
+        val input: MutableMap<String?, String?> = HashMap()
 
-        for (i in 0 until 50) {
-            total += candleSticks[i].close
+        input["pair"] = "ETHUSDT"
+        input["interval"] = "60"
+        response = api.queryPublic(KrakenApi.Method.OHLC, input)
+
+        val responseObj = JSONObject(response)
+        val resultObj = responseObj.getJSONObject("result")
+        val tickerJsonArray = resultObj.getJSONArray("ETHUSDT")
+
+        val closes = mutableListOf<Double>()
+        for (i in 0 until tickerJsonArray.length()) {
+            // OHLC entries are in the follow order: [time, open, high, low, close]
+            val close = tickerJsonArray.getJSONArray(i).get(4).toString().toDouble()
+            closes.add(close)
         }
 
-        val sma = total / 50
-
-        return sma
+        return closes
     }
 
+    private fun calcKst(closes: List<Double>): String {
+        val rocLen1 = 10
+        val rocLen2 = 15
+        val rocLen3 = 20
+        val rocLen4 = 30
+        val smaLen1 = 10
+        val smaLen2 = 10
+        val smaLen3 = 10
+        val smaLen4 = 15
+        val sigLen = 9
+        val numSamples = 2 // Excludes current, uncommitted sample
 
-    private fun getMin(candleSticks: List<CandleStick>, startIndex: Int, endIndex: Int) : Double {
-        var min = Double.MAX_VALUE
-        for (i in startIndex .. endIndex) {
-            if (candleSticks[i].low < min)
-                min = candleSticks[i].low
+        val smaRoc1 = smaRoc(closes, rocLen1, smaLen1, sigLen + numSamples)
+        val smaRoc2 = smaRoc(closes, rocLen2, smaLen2, sigLen + numSamples)
+        val smaRoc3 = smaRoc(closes, rocLen3, smaLen3, sigLen + numSamples)
+        val smaRoc4 = smaRoc(closes, rocLen4, smaLen4, sigLen + numSamples)
+
+        if (smaRoc1.size != sigLen + numSamples ||
+            smaRoc1.size != smaRoc2.size ||
+            smaRoc2.size != smaRoc3.size ||
+            smaRoc3.size != smaRoc4.size) {
+            throw Exception("smaRoc series not of equal sizes")
         }
-        return min
+
+        val kstList = mutableListOf<Double>()
+        for (i in 0 until sigLen + numSamples) {
+            val kstVal = smaRoc1[i] + 2 * smaRoc2[i] + 3 * smaRoc3[i] + 4 * smaRoc4[i]
+            kstList.add(kstVal)
+        }
+
+        val kstMostRecent = kstList[kstList.size - 2]
+        val kstPrevious = kstList[kstList.size - 3]
+        val sig = sma(kstList, sigLen, numSamples + 1)
+        val sigMostRecent = sig[numSamples - 1]
+        val sigPrevious = sig[numSamples - 2]
+
+        var action = "hodl"
+        if (kstMostRecent > sigMostRecent && kstPrevious < sigPrevious) {
+            action = "buy"
+        } else if (kstMostRecent < sigMostRecent && kstPrevious > sigPrevious) {
+            action = "sell"
+        }
+
+        val editor = sharedPreferences.edit()
+        val currentDateTime = LocalDateTime.now()
+        val currentDateTimeFormatted = currentDateTime.format(DateTimeFormatter.ISO_TIME)
+        editor.putString("time", currentDateTimeFormatted)
+        editor.putString("kst", "$kstMostRecent")
+        editor.putString("sig", "$sigMostRecent")
+        editor.putString("action", action)
+        editor.apply()
+
+        return action
     }
 
-    private fun getMax(candleSticks: List<CandleStick>, startIndex: Int, endIndex: Int) : Double {
-        var max = Double.MIN_VALUE
-        for (i in startIndex .. endIndex) {
-            if (candleSticks[i].high > max)
-                max = candleSticks[i].high
+    private fun getBalance(api: KrakenApi, asset: String): Double {
+        val input: MutableMap<String?, String?> = HashMap()
+        val response = api.queryPrivate(KrakenApi.Method.BALANCE, input)
+        val responseObj = JSONObject(response)
+        val resultObj = responseObj.getJSONObject("result")
+        val balance = resultObj.get(asset)
+        return balance.toString().toDouble()
+    }
+
+    private fun buy(api: KrakenApi, lastClose: Double) {
+        val response: String
+        val input: MutableMap<String?, String?> = HashMap()
+
+        val usdtBalance = getBalance(api, "USDT")
+        val ethToBuy = usdtBalance / lastClose * 0.997
+
+        input["pair"] = "ETHUSDT"
+        input["ordertype"] = "market"
+        input["type"] = "buy"
+        input["volume"] = ethToBuy.toBigDecimal().toPlainString()
+        response = api.queryPrivate(KrakenApi.Method.ADD_ORDER, input)
+
+        val responseObj = JSONObject(response)
+    }
+
+    private fun sell(api: KrakenApi) {
+        val response: String
+        val input: MutableMap<String?, String?> = HashMap()
+
+        val ethBalance = getBalance(api, "XETH")
+        val ethToSell = ethBalance * 0.997
+
+        input["pair"] = "ETHUSDT"
+        input["ordertype"] = "market"
+        input["type"] = "sell"
+        input["volume"] = ethToSell.toBigDecimal().toPlainString()
+        response = api.queryPrivate(KrakenApi.Method.ADD_ORDER, input)
+
+        val responseObj = JSONObject(response)
+    }
+
+    private fun smaRoc(values: List<Double>, rocLen: Int, smaLen: Int, targetLen: Int): List<Double> {
+        return sma(roc(values, rocLen, smaLen + targetLen), smaLen, targetLen)
+    }
+
+    private fun sma(values: List<Double>, smaLen: Int, targetLen: Int): List<Double> {
+        val smaList = mutableListOf<Double>()
+
+        for (i in targetLen - 1 downTo 0) {
+            var total = 0.0
+            for (j in 1 until smaLen + 1) {
+                total += values[values.size - j - i]
+            }
+            smaList.add(total / smaLen)
         }
-        return max
+
+        return smaList
+    }
+
+    private fun roc(values: List<Double>, rocLen: Int, targetLen: Int): List<Double> {
+        val rocList = mutableListOf<Double>()
+        val lastIndex = values.size - 1
+
+        for (i in targetLen - 1 downTo 0) {
+            rocList.add((values[lastIndex - i] - values[lastIndex - rocLen  - i]) / values[lastIndex - rocLen - i] * 100)
+        }
+
+        return rocList
     }
 }

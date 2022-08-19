@@ -15,40 +15,28 @@
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/text_view_kst"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello World!"
+        app:layout_constraintLeft_toLeftOf="@+id/text_view_time"
+        app:layout_constraintTop_toBottomOf="@+id/text_view_time" />
+
+    <TextView
+        android:id="@+id/text_view_sig"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Hello World!"
+        app:layout_constraintTop_toBottomOf="@+id/text_view_kst"
+        app:layout_constraintLeft_toLeftOf="@+id/text_view_kst"/>
     <TextView
         android:id="@+id/text_view_action"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Hello World!"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_time"
-        app:layout_constraintLeft_toLeftOf="@+id/text_view_time"/>
-    <TextView
-        android:id="@+id/text_view_close"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_action"
-        app:layout_constraintLeft_toLeftOf="@+id/text_view_action"/>
-    <TextView
-        android:id="@+id/text_view_ema"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_close"
-        app:layout_constraintLeft_toLeftOf="@+id/text_view_close"/>
-    <TextView
-        android:id="@+id/text_view_decision"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_ema"
-        app:layout_constraintLeft_toLeftOf="@+id/text_view_ema"/>
-    <TextView
-        android:id="@+id/text_view_psar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_decision"
-        app:layout_constraintLeft_toLeftOf="@+id/text_view_decision"/>
+        app:layout_constraintTop_toBottomOf="@+id/text_view_sig"
+        app:layout_constraintLeft_toLeftOf="@+id/text_view_sig"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
