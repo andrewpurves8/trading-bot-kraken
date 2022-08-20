@@ -25,7 +25,7 @@ class TraderKraken(context: Context) {
         val action = calcKst(closes)
         if (action == "buy")  {
             buy(api, closes[closes.size - 1])
-        } else {
+        } else if (action == "sell") {
             sell(api)
         }
     }
